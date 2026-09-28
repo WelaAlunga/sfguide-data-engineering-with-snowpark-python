@@ -3,13 +3,14 @@ channels:
   - https://repo.anaconda.com/pkgs/snowflake
   - nodefaults
 dependencies:
-  - python=3.8.15
+  - python=3.11
   - snowflake-snowpark-python
   - pyopenssl=22.0.0
   - pip
   - pip:
    # Snowflake
-    - snowflake-cli-labs==0.2.8
+    - snowflake-cli==2.8.2
+    - click==8.1.7
     - streamlit
     - matplotlib
     - seaborn

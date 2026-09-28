@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=../../.vscode/snowpark-project.schema.json
+definition_version: "1.1"
+snowpark:
+  project_name: "fahrenheit_to_celsius_udf"
+  stage_name: "HOL_DB.ANALYTICS.DEPLOYMENTS"
+  src: "."
+  functions:
+    - name: "HOL_DB.ANALYTICS.FAHRENHEIT_TO_CELSIUS_UDF"
+      handler: "app.main"
+      signature:
+        - name: "temp_f"
+          type: "float"
+      returns: "float"
+      runtime: "3.11"

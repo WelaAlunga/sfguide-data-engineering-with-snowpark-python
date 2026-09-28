@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=../../.vscode/snowpark-project.schema.json
+definition_version: "1.1"
+snowpark:
+  project_name: "daily_city_metrics_update_sp"
+  stage_name: "HOL_DB.ANALYTICS.DEPLOYMENTS"
+  src: "."
+  procedures:
+    - name: "HOL_DB.ANALYTICS.DAILY_CITY_METRICS_UPDATE_SP"
+      handler: "app.main"
+      signature: ""
+      returns: "string"
+      runtime: "3.11"
+      execute_as_caller: true

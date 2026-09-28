@@ -1,2 +1,3 @@
 snowflake-snowpark-python[pandas]
-snowflake-cli-labs==0.2.8
+snowflake-cli==2.8.2
+click==8.1.7

@@ -57,4 +57,56 @@ GRANT IMPORTED PRIVILEGES ON DATABASE FROSTBYTE_WEATHERSOURCE TO ROLE HOL_ROLE;
 
 
 -- Let's look at the data - same 3-part naming convention as any other table
-SELECT * FROM FROSTBYTE_WEATHERSOURCE.ONPOINT_ID.POSTAL_CODES LIMIT 100;
+SELECT * FROM FROSTBYTE_WEATHERSOURCE.ONPOINT_ID.POSTAL_CODES
+WHERE COUNTRY ='US' AND CITY_NAME LIKE '%H%'
+LIMIT 100;
+
+
+-- What is the temperature in London during May?
+-- We would like to look at the temperatures in May of last year to determine when to rotate seasonal menu items.
+SELECT
+    postal_code,
+    country,
+    date_valid_std,
+    min_temperature_air_2m_f,
+    avg_temperature_air_2m_f,
+    max_temperature_air_2m_f
+FROM
+    FROSTBYTE_WEATHERSOURCE.onpoint_id.history_day
+WHERE
+    postal_code = 'SW1A 0AA' AND
+    country = 'GB' AND
+    date_valid_std BETWEEN DATE_FROM_PARTS(YEAR(CURRENT_DATE)-1,5,1) AND DATE_FROM_PARTS(YEAR(CURRENT_DATE)-1,5,31)
+ORDER BY
+    date_valid_std
+;
+
+-- What will the temperature in Tokyo be next Saturday?
+-- Our food truck is catering an outdoor party in Tokyo next Saturday? Can you tell me the forecasted temperatures so we can determine our menu items?
+SELECT
+    postal_code,
+    country,
+    date_valid_std,
+    min_temperature_air_2m_f,
+    avg_temperature_air_2m_f,
+    max_temperature_air_2m_f
+FROM
+(
+    SELECT
+        postal_code,
+        country,
+        date_valid_std,
+        min_temperature_air_2m_f,
+        avg_temperature_air_2m_f,
+        max_temperature_air_2m_f,
+        DATEADD(DAY,2,CURRENT_DATE()) AS skip_date,
+        DATEADD(DAY,6 - DAYOFWEEKISO(skip_date),skip_date) AS next_saturday
+    FROM
+        FROSTBYTE_WEATHERSOURCE.onpoint_id.forecast_day
+    WHERE 1=1 AND
+        -- postal_code = '102-0082' AND
+        country = 'US'
+)
+WHERE
+    date_valid_std = next_saturday
+;

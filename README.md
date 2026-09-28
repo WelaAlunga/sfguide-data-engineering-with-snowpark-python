@@ -69,7 +69,7 @@ python 04_create_pos_view.py
 ```
 
 ## Step 5 - Fahrenheit to Celsius UDF
-During this step we will be creating and deploying our first Snowpark Python object to Snowflake, a user-defined function (or UDF). The UDF will be very basic to begin with, but in a future step, we'll update it to include a third-party Python package. Additionally, you will be introduced to the new SnowCLI, a new developer command line tool. SnowCLI makes building and deploying Snowpark Python objects to Snowflake a consistent experience for the developer. To put this in context, we are on step **#5** in our data flow overview:
+During this step we will create and deploy our first Snowpark Python object to Snowflake, a user-defined function (UDF). The UDF uses a third-party Python package, and Snowflake CLI will build and deploy it from the Snowpark project definition. To put this in context, we are on step **#5** in our data flow overview:
 
 <img src="images/05_f_2_c_udf.png" width=800px>
 
@@ -77,6 +77,7 @@ During this step we will be creating and deploying our first Snowpark Python obj
 To test the UDF locally, you will execute the `steps/05_fahrenheit_to_celsius_udf/app.py` script. Like we did in the previous steps, we'll execute it from the terminal. The following commands assume you are already in the `steps` directory of the repository.
 ```
 cd 05_fahrenheit_to_celsius_udf
+python -m pip install -r requirements.txt
 python app.py 35
 ```
 
@@ -85,10 +86,11 @@ While developing a UDF, you can simply run it locally. If your UDF doesn't need 
 
 ### Deploying the UDF to Snowflake ###
 
-To deploy your UDF to Snowflake we will use the SnowCLI tool. The SnowCLI tool will do all the heavy lifting of packaging up your application, copying it to a Snowflake stage, and creating the object in Snowflake.
+To deploy the UDF, use Snowflake CLI from the project directory. Its `snowflake.yml` declares the function signature and Python 3.11 runtime. The commands use the `default` connection configured in `~/.snowflake/connections.toml`:
 
 ```
-snow function create
+snow snowpark build --connection default
+snow snowpark deploy --replace --connection default
 ```
 ### Running the UDF in Snowflake ###
 In order to run the UDF in Snowflake we have a few options. Any UDF in Snowflake can be invoked through SQL as follows:
@@ -97,11 +99,6 @@ In order to run the UDF in Snowflake we have a few options. Any UDF in Snowflake
 SELECT ANALYTICS.FAHRENHEIT_TO_CELSIUS_UDF(35);
 ```
 
-With the SnowCLI utility you can also invoke the UDF from the terminal in Codespaces as follows:
-
-```
-snow function execute -f "fahrenheit_to_celsius_udf(35)"
-```
 
 ## Step 6 - Orders Update Sproc
 
@@ -122,9 +119,10 @@ While we’re developing the sproc, the Python code will run locally on your lap
 
 ### Deploying the Sproc to Snowflake ###
 
-To deploy your sproc to Snowflake we will again use the SnowCLI tool.
+To deploy the sproc, run Snowflake CLI from the project directory. Its `snowflake.yml` declares the procedure and Python runtime.
 ```
-snow procedure create
+snow snowpark build --connection default
+snow snowpark deploy --replace --connection default
 ```
 
 ### Running the Sproc in Snowflake ###
@@ -135,11 +133,6 @@ In order to run the sproc in Snowflake we have a few options. Any sproc in Snowf
 CALL ORDERS_UPDATE_SP();
 ```
 
-With the SnowCLI utility you can also invoke the UDF from the terminal in Codespaces as follows:
-
-```
-snow procedure execute -p "orders_update_sp()"
-```
 
 ## Step 7 - Daily City Metrics Update Sproc
 
@@ -159,10 +152,11 @@ python app.py
 
 ### Deploying the Sproc to Snowflake ###
 
-To deploy your sproc to Snowflake we will again use the SnowCLI tool. 
+To deploy the sproc, run Snowflake CLI from the project directory:
 
 ```
-snow procedure create
+snow snowpark build --connection default
+snow snowpark deploy --replace --connection default
 ```
 
 ### Running the Sproc in Snowflake ###
@@ -174,11 +168,6 @@ CALL DAILY_CITY_METRICS_UPDATE_SP();
 ```
 
 
-With the SnowCLI utility you can also invoke the UDF from the terminal in Codespaces as follows:
-
-```
-snow procedure execute -p "daily_city_metrics_update_sp()"
-```
 
 ## Step 8 - Orchestrate Jobs
 
@@ -327,7 +316,7 @@ In the top right, click the "Select Kernel," then click "Python Environments."
 
 <img src="images/12_select_kernel.png" width=800px>
 
-The dialog box should now say "Select a Python Environment."  Click the small reload icon in the top right of the dialog box, then select the **"pysnowpark (python 3.8.15)"** kernel.
+The dialog box should now say "Select a Python Environment." Click the reload icon, then select the **`pysnowpark` (Python 3.11)** kernel.
 
 <img src="images/12_select_conda_env.png" width=800px>
 

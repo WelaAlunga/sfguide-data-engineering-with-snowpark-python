@@ -1,0 +1,13 @@
+select top 100 * from HOL_DB.RAW_POS.COUNTRY;
+
+select top 100 * from HOL_DB.RAW_POS.FRANCHISE;
+
+select top 100 * from HOL_DB.RAW_POS.LOCATION;
+
+select top 100 * from HOL_DB.RAW_POS.MENU;
+
+SELECT top 100 * from HOL_DB.RAW_POS.ORDER_HEADER;
+
+SELECT top 100 * from HOL_DB.RAW_POS.ORDER_DETAIL;
+
+SELECT * FROM HOL_DB.RAW_POS.TRUCK;

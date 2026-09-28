@@ -74,58 +74,51 @@ on your account name in the lower left, hover over your account, then select Cop
 
     <img src="images/prereq/terminal.png" width=400px>
 
-### Create Snowflake Credentials File
-In the Codespace terminal execute the following commands:
-```
-mkdir ~/.snowsql
-touch ~/.snowsql/config
+### Configure Snowflake Credentials
+The Snowflake Connector for Python and current Snowflake CLI read connection profiles from `~/.snowflake/connections.toml`. Codespaces may create this file during setup. Open it from the integrated terminal with `code ~/.snowflake/connections.toml`; Ctrl+P searches workspace files and may not find files in your home directory.
+
+Edit the `[default]` profile with your account, username, and password. After running Step 1, set the role, warehouse, database, and schema as well:
+
+```toml
+[default]
+account = "<account_identifier>"
+user = "<username>"
+password = "<password>"
+role = "HOL_ROLE"
+warehouse = "HOL_WH"
+database = "HOL_DB"
+schema = "ANALYTICS"
 ```
 
-Now that we've created the file, we can open it in the codespace by navigating to it:
-![image](https://user-images.githubusercontent.com/7671134/234953451-8b78db0b-d02e-44df-b00c-fb9a12754167.png)
+Save the file and keep it private; do not commit it. If the file or directory is missing, create it with `mkdir -p ~/.snowflake` and open the path above.
 
-In the dialog that opens, type in the path to your config file:
-```
-/home/codespace/.snowsql/config
-```
-<img width="905" alt="image" src="https://user-images.githubusercontent.com/7671134/234953793-c7c30a0b-591b-4d99-b923-36b782ca28ff.png">
-
-
-Add your account details to the config file for snowsql, which are the exact same values used for the Github secrets, be sure to save the file.
-
-Note: we aren’t actually installing or using snowsql, just creating the credentials in the location that the snowpark_utils python file expects them to be, since we are just deploying code to Snowflake and not staging local data.
-
-#### Create Snowsql Credentials File
-```
-[connections.dev]
-accountname = <myaccount>
-username = <myusername>
-password = <mypassword>
-rolename = HOL_ROLE
-warehousename = HOL_WH
-dbname = HOL_DB
-```
 ### Create Anaconda Environment and Test Connection
 This lab will take place inside an Anaconda virtual environment running in the Codespace. You will create and activate an Anaconda environment for this lab using the supplied conda_env.yml file. Run these commands from a terminal in the root of your local forked repository.
 ```
 conda env create -f conda_env.yml
 conda init bash
 ```
-You will need to close and reopen the terminal, then execute:
+You may need to close and reopen the terminal, then execute:
 ```
 conda activate pysnowpark
 ```
-Once activated you should see `(pysnowpark)` in front of the host name
- 
+The supplied environment uses Python 3.11 and Snowflake CLI 2.8.2. Once activated you should see `(pysnowpark)` in front of the host name.
+
  <img src="images/prereq/activate_pysnowpark.png" width=800px>
 
 
-Lastly, lets test that the connection is successful. To do this we'll run `test_connection.py`
+Lastly, test the CLI connection:
+
+```
+snow connection test --connection default
+```
+
+Then test the Snowpark connection by running `test_connection.py`:
 
 ```
 python test_connection.py
 ```
 
-If the connection test returns successful, you have completed all the prerequisites for the lab. If it returns an error message, reopen the credentials file that you created at the [Create Snowflake Credentials File](#create-snowflake-credentials-file) step and check the account is correctly formatted and the username and password are correct.
+If either connection test returns an error, check the `[default]` profile in `~/.snowflake/connections.toml` and verify the account identifier and credentials.
 
 If you have successfully completed all the steps, congratulations you are ready for the Hands on Lab! If you completed these prerequisites prior to attending the Hands on Lab, you can stop the Codespace in Github where you launched it from, or it will automatically stop after 30 mintues

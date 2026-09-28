@@ -21,8 +21,10 @@ def get_snowpark_session() -> Session:
         # Not sure what this does?
         session = SnowflakeConnection().connection
     # if running locally with a config file
-    # TODO: Look for a creds.json style file. This should be the way all snowpark
-    # related tools work IMO
+    snowflake_config_path = os.path.expanduser('~/.snowflake/connections.toml')
+    if os.path.exists(snowflake_config_path):
+        snowpark_config = get_snowflake_config(config_file_path=snowflake_config_path)
+        SnowflakeConnection().connection = Session.builder.configs(snowpark_config).create()
     # if using snowsql config, like snowcli does
     elif os.path.exists(os.path.expanduser('~/.snowsql/config')):
         snowpark_config = get_snowsql_config()
@@ -81,4 +83,22 @@ def get_snowsql_config(
     except Exception:
         raise Exception(
             "Error getting snowsql config details"
+        )
+
+
+def get_snowflake_config(
+    connection_name: str = 'default',
+    config_file_path: str = os.path.expanduser('~/.snowflake/connections.toml'),
+) -> dict:
+    import tomllib
+
+    try:
+        with open(config_file_path, "rb") as config_file:
+            config = tomllib.load(config_file)
+        connections = config.get('connections', config)
+        connection = connections[connection_name]
+        return {key: value for key, value in connection.items() if value}
+    except Exception:
+        raise Exception(
+            "Error getting Snowflake connections.toml details"
         )

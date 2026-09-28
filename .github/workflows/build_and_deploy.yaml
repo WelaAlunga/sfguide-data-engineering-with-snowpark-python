@@ -16,17 +16,17 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Setup Python 3.8
-        uses: actions/setup-python@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.8'
+          python-version: '3.11'
 
       - name: Install Python packages
         run: pip install -r requirements.txt
 
-      - name: Configure snowcli
+      - name: Configure Snowflake CLI connection
         env:
           SNOWSQL_ACCOUNT: ${{ secrets.SNOWSQL_ACCOUNT }}
           SNOWSQL_USER: ${{ secrets.SNOWSQL_USER }}
@@ -35,14 +35,27 @@ jobs:
           SNOWSQL_WAREHOUSE: ${{ secrets.SNOWSQL_WAREHOUSE }}
           SNOWSQL_DATABASE: ${{ secrets.SNOWSQL_DATABASE }}
         run: |
-          cd $GITHUB_WORKSPACE
-          echo "[connections.dev]" > config
-          echo "accountname = $SNOWSQL_ACCOUNT" >> config
-          echo "username = $SNOWSQL_USER" >> config
-          echo "password = $SNOWSQL_PWD" >> config
-          echo "rolename = $SNOWSQL_ROLE" >> config
-          echo "warehousename = $SNOWSQL_WAREHOUSE" >> config
-          echo "dbname = $SNOWSQL_DATABASE" >> config
+          mkdir -p "$HOME/.snowflake"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          profile = {
+              "account": os.environ["SNOWSQL_ACCOUNT"],
+              "user": os.environ["SNOWSQL_USER"],
+              "password": os.environ["SNOWSQL_PWD"],
+              "role": os.environ["SNOWSQL_ROLE"],
+              "warehouse": os.environ["SNOWSQL_WAREHOUSE"],
+              "database": os.environ["SNOWSQL_DATABASE"],
+              "schema": "ANALYTICS",
+          }
+          lines = ["[default]"]
+          lines.extend(f"{key} = {json.dumps(value)}" for key, value in profile.items())
+          path = Path.home() / ".snowflake" / "connections.toml"
+          path.write_text("\n".join(lines) + "\n")
+          path.chmod(0o600)
+          PY
 
       - name: Deploy Snowpark apps
         run: python deploy_snowpark_apps.py $GITHUB_WORKSPACE
