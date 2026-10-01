@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=../.vscode/snowpark-project.schema.json
+definition_version: "1.1"
+streamlit:
+  name: "SALES_METRICS_APP"
+  database: "HOL_DB"
+  schema: "ANALYTICS"
+  stage: "HOL_DB.ANALYTICS.STREAMLIT_STAGE"
+  query_warehouse: "HOL_WH"
+  main_file: "11_create_streamlit_app.py"
+  env_file: "streamlit_environment.yml"
+  title: "Sales Metrics"

@@ -1,12 +1,13 @@
 import sys
-sys.path.append('../')
-from utils import snowpark_utils
-from snowflake.snowpark import Session
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from snowflake.snowpark.context import get_active_session
+from snowflake.snowpark.exceptions import SnowparkSessionException
 import streamlit as st
 import altair as alt
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sb
 
 # Define function to fetch data from Snowflake
 def get_data():
@@ -58,14 +59,20 @@ def get_data():
     order by 1,2
     """
 
-    # session=create_session_object()
-    session=snowpark_utils.get_snowpark_session()
+    try:
+        session = get_active_session()
+        close_session = False
+    except SnowparkSessionException:
+        from utils.snowpark_utils import get_snowpark_session
 
-    # Execute the query and load the results into a DataFrame
-    df = session.sql(query).to_pandas()
+        session = get_snowpark_session()
+        close_session = True
 
-    # Return the DataFrame
-    return df
+    try:
+        return session.sql(query).to_pandas()
+    finally:
+        if close_session:
+            session.close()
 
 # Set the page title and layout
 st.set_page_config(page_title='Sales Metrics', layout='wide')

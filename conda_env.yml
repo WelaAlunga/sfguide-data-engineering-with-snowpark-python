@@ -4,8 +4,10 @@ channels:
   - nodefaults
 dependencies:
   - python=3.11
+  - ipykernel
   - snowflake-snowpark-python
   - pyopenssl=22.0.0
+  - cachetools
   - pip
   - pip:
    # Snowflake
@@ -14,3 +16,6 @@ dependencies:
     - streamlit
     - matplotlib
     - seaborn
+    - scikit-learn
+    - joblib
+    - pandas

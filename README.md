@@ -281,23 +281,36 @@ At this point those changes are only committed locally and have not yet been pus
 
 This repository is already set up with a very simple GitHub Actions CI/CD pipeline. You can review the code for the workflow by opening the `.github/workflows/build_and_deploy.yaml` file in Codespaces.
 
-## Step 11 - Deploy Streamlit Application
+## Step 11 - Streamlit Application
 
 Now that we've created a data pipline to combine POS data with Weather data, let's create a simple Streamlit application to visualize the data and see if we can identify any correlation that warrants further discovery by the Analytics, or Data Science team.
 
-To deploy the application, we will use the streamlit run command:
+### Run in Codespaces
+
+From the `steps` directory, activate `pysnowpark` and run the local app:
 
 ```
 cd ..
 streamlit run 11_create_streamlit_app.py --server.enableCORS false --server.enableXsrfProtection false
 ```
 
-Note: All of the packages for this application have already been installed in the Conda environment via the conda_env.yml. Additionally, the `--server` arguments in the streamlit run command are specific to launching the streamlit app and using github's compute. If running streamlit locally, these are not necessary.
+The `--server` arguments are for the Codespaces preview. They are not needed when running locally on your own machine.
 
 To stop the Streamlit App run:
 ```
 ctrl + c
 ```
+
+### Deploy as a Streamlit in Snowflake app
+
+The project definition in `steps/snowflake.yml` deploys the same app code to Snowflake. It uses Snowflake's active session, `HOL_WH` for SQL queries, and `HOL_DB.ANALYTICS.STREAMLIT_STAGE` for app files. From the `steps` directory, use a profile name shown by `snow connection list`:
+
+```bash
+snow streamlit deploy --replace --connection <connection_name>
+snow streamlit get-url HOL_DB.ANALYTICS.SALES_METRICS_APP --connection <connection_name>
+```
+
+Replace `<connection_name>` with your configured Snowflake CLI profile. The Streamlit app and its query warehouse run in Snowflake; the Codespaces version continues to run in the Codespace.
 
 ## Optional: Step 12 - Run Snowpark Data Science Notebook
 #### Skip to [Step 13](#step-13---teardown) to tear down the lab, if not exploring the notebook

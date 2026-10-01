@@ -22,9 +22,9 @@ Study notes based on this repository's Snowpark data-engineering lab, with trans
 | Warehouses | `HOL_WH` runs queries/tasks and is resized | Independent compute clusters. Useful for workload isolation and scaling compute separately from storage. |
 | Databases and schemas | `HOL_DB`: `EXTERNAL`, `RAW_POS`, `RAW_CUSTOMER`, `HARMONIZED`, `ANALYTICS` | Namespaces and organization boundaries separating source, harmonized, and consumer data. |
 | Information Schema and task history | Existence checks and monitoring examples | Metadata interfaces for inventory, execution observability, and operational automation. |
-| Streamlit | Step 11 queries metrics and charts results | Python framework for interactive apps. Useful for governed analyst exploration; app identity and data access still require controls. |
+| Streamlit | Step 11 runs locally in Codespaces and is also deployed as `HOL_DB.ANALYTICS.SALES_METRICS_APP` in Snowflake | Python framework for custom interactive apps. The hosted app uses a Snowflake active session and `HOL_WH`; useful for tailored workflows when governed role access is appropriate. |
 | Anaconda/Snowflake package repository | SciPy dependency for the Python UDF | Governed package distribution for Snowflake Python runtimes. Supports reproducible server-side dependencies without arbitrary network calls. |
-| Snowflake CLI and GitHub Actions | Steps 5–7 deployment; Step 10 CI/CD | Build and deploy project artifacts. Useful for repeatable deployments; production pipelines should add tests, approvals, promotion controls, and auditability. |
+| Snowflake CLI and GitHub Actions | Steps 5–7 and 11 deployment; Step 10 CI/CD | Build and deploy Snowpark and Streamlit project artifacts. Useful for repeatable deployments; production pipelines should add tests, approvals, promotion controls, and auditability. |
 | External Access Integrations | Not used; handlers do not call external network APIs | Governed outbound network access for supported handlers. Use only when a handler genuinely must call an approved endpoint. |
 | Snowflake Secrets | Not used by handlers. Local config and GitHub Actions secrets are separate credential mechanisms. | Secure credential objects for supported handlers, commonly with integrations. Not the same as `~/.snowflake/connections.toml`. |
 | Other services | Snowflake shared database, SQL UDF, external object storage, and GitHub Actions | No Snowflake Secrets, External Access Integration, or Dynamic Table is implemented in this lab. |
@@ -102,7 +102,7 @@ Most calls in this lab are **not UDFs**. They are ordinary Python functions, Sno
 5. **Transformation:** Step 4 joins six POS tables. Step 6 merges view-stream changes into `ORDERS`. Step 7 combines order changes and shared weather data.
 6. **Business logic:** Temperature/unit conversion, daily sales aggregation, and keyed target merges.
 7. **Orchestration:** Step 8 tasks conditionally chain order and metric procedures; Step 9 manually initiates an incremental reload.
-8. **Consumption:** `DAILY_CITY_METRICS` feeds Streamlit and an optional notebook.
+8. **Consumption:** `DAILY_CITY_METRICS` feeds the local or Snowflake-hosted Streamlit app and an optional notebook.
 
 ```mermaid
 flowchart LR
@@ -124,6 +124,57 @@ flowchart LR
   STAGE --> P6
   STAGE --> P7
 ```
+
+### Step 11: Streamlit App, Hosting, and Tool Choice
+
+#### What the app does
+
+The app reads `HOL_DB.ANALYTICS.DAILY_CITY_METRICS`, computes daily and monthly views in SQL, and displays:
+
+- City, month, and year selectors.
+- Sales-versus-temperature scatter plot and sales-versus-precipitation box plot.
+- Monthly time series comparing sales with temperature and precipitation.
+- A correlation matrix and an optional raw-data table.
+
+The app uses Snowpark to execute its SQL and converts the query result to a Pandas DataFrame for filtering and charting. This is convenient for the demonstration but means the current code fetches the full query result before applying the sidebar filters. It has no Streamlit cache. For larger datasets, push filters/aggregations into Snowflake, return only the needed rows/columns, and evaluate a short, policy-appropriate cache TTL.
+
+#### Local versus Snowflake-hosted
+
+| | Codespace/local Streamlit | Streamlit in Snowflake |
+|---|---|---|
+| Where the app runs | Python Streamlit server in the Codespace or developer machine. The forwarded Codespace URL exposes the local server. | Snowflake-hosted Streamlit runtime. The app is opened from its Snowflake/Snowsight URL. |
+| Session/authentication | Uses `utils.snowpark_utils` and the local connection profile. | Calls `get_active_session()`; Snowflake supplies the active session. The hosted app does not read the local credentials file. |
+| SQL compute | The app process runs locally; Snowflake executes queries using the connection's warehouse, here `HOL_WH`. | The Streamlit runtime is hosted by Snowflake; SQL queries use the `query_warehouse` declared in `steps/snowflake.yml`, here `HOL_WH`. |
+| Deployment | `streamlit run 11_create_streamlit_app.py`; stop with Ctrl+C. | Snowflake CLI uploads the main file/environment to a Snowflake stage and creates the Streamlit object. The lab deployment is `HOL_DB.ANALYTICS.SALES_METRICS_APP`. |
+| Main cost drivers | Codespace/machine runtime plus Snowflake warehouse usage for queries. | Snowflake Streamlit app compute plus the query warehouse used by SQL. Both can contribute to Snowflake spend. |
+
+The original app was adapted to support both modes: it first tries `get_active_session()` for Snowflake hosting and falls back to the local Snowpark connection helper when no active Snowflake session exists. `steps/snowflake.yml` specifies the object name, database/schema, stage, query warehouse, entry file, and title. `steps/streamlit_environment.yml` declares the hosted Streamlit, Snowpark, Pandas, and Altair dependencies. The deployment script recognizes Streamlit projects and routes them to `snow streamlit deploy` rather than the Snowpark build/deploy commands.
+
+For local preview, run from the `steps` directory:
+
+```bash
+conda activate pysnowpark
+streamlit run 11_create_streamlit_app.py --server.enableCORS false --server.enableXsrfProtection false
+```
+
+To redeploy from the `steps` directory, use a connection name shown by `snow connection list`:
+
+```bash
+snow streamlit deploy --replace --connection <connection_name>
+snow streamlit get-url HOL_DB.ANALYTICS.SALES_METRICS_APP --connection <connection_name>
+```
+
+Replace `<connection_name>` with the configured profile name; angle brackets are a placeholder, not literal shell syntax. The role used for deployment must be able to create/use the Streamlit object and its stage, and app viewers need the appropriate Snowflake access. Do not grant broad privileges just to make the app visible.
+
+#### When to choose Streamlit, Snowflake dashboards, or BI tools
+
+| Tool | Good fit | Tradeoffs |
+|---|---|---|
+| Streamlit in Snowflake | A custom Python-backed interface, purpose-built controls, calculations, or a workflow tightly coupled to Snowflake data and roles. | Code-owned UI requires Python maintenance, tests, deployment, and explicit query/resource management. It is not automatically cheaper than another option. |
+| Snowflake dashboards | SQL-first operational monitoring and straightforward charts for users already working in Snowflake. | A good fit for simpler dashboards; less appropriate when the experience needs substantial custom Python logic or a specialized workflow. |
+| Power BI or Tableau | Enterprise BI distribution, governed semantic models, broad self-service authoring, and dashboards spanning multiple platforms in an organization's existing BI ecosystem. | Adds BI licensing/platform administration and connector/governance considerations. Query and refresh architecture determines where compute and data movement occur. |
+
+Choose based on audience, interaction needs, governed metric ownership, source systems, deployment model, and operating cost. For healthcare, keep PHI behind Snowflake authorization, minimize data sent to the app, and verify how the selected hosting and sharing mode maps to the organization's access and audit requirements.
 
 ## 5. Snowpark Deep Dive
 
@@ -366,6 +417,65 @@ Treat PHI and sensitive health data as restricted. Apply minimum-necessary acces
 - **Principal Data Engineer:** Establish shared engineering standards, contracts, quality patterns, platform adoption, and cross-domain reliability/cost tradeoffs.
 - **Data Architect:** Define trust zones, ownership, access, lineage, residency/sharing, canonical registry entities, system boundaries, and long-term evolution.
 
+## 10. Troubleshooting and Gotchas from Running This Lab
+
+| Symptom | Cause | Resolution and lesson |
+|---|---|---|
+| `snow snowpark ...` reports that `snowpark` is an unknown command | The environment had the 2023 `snowflake-cli-labs==0.2.8` CLI, whose command layout predates the current project workflow. | The project was migrated to `snowflake-cli==2.8.2`, `snowflake.yml`, and `snow snowpark build/deploy`. Check `snow --help` and the package version before following older CLI instructions. |
+| Deployment says Python runtime 3.8 is decommissioned | The old CLI template hardcoded `RUNTIME_VERSION=3.8`; a warning during local imports did not itself block execution, but Snowflake later rejected creation. | Set an explicitly supported runtime in the project definition and use the current CLI. Do not patch a generated or installed CLI SQL template as a lasting solution. |
+| CLI fails looking for `connections.dev` or says the connection is missing | The old app configuration expected `app.toml` plus legacy `~/.snowsql/config`; the current CLI and connector use TOML connection profiles. | Use the current `snowflake.yml` project format and the profile name actually listed by `snow connection list`. The helper supports a sole named connection, but multiple profiles should be selected explicitly. |
+| `Password is empty` while opening the app's Snowpark session | The selected profile had account/user/authenticator fields but no password, so password authentication could not succeed. | Add the password locally only if password authentication is intended, or configure the organization's approved SSO/key-pair method. Never paste credentials into chat or commit the file. The credentials file is outside the repository and should stay owner-only (`chmod 600`). |
+| `No such file ...` when opening or launching a file | A relative path was repeated even though the terminal was already inside the target directory. | Check `pwd`; use `python app.py` inside the app directory or a path relative to the repository root. Shell launch commands belong in the terminal, not in a `.py` file. |
+| `ModuleNotFoundError: scipy` or `No module named tomllib` | The command ran in the wrong environment, or an app dependency was not installed there. `tomllib` is in Python 3.11+, not Python 3.8. | Activate `pysnowpark` (Python 3.11), install the app's own `requirements.txt`, and verify with `python --version` and an import check. The current environment definition also includes `ipykernel` and `cachetools` for the notebook. |
+| Snowflake says `Unknown function ORDERS_UPDATE_SP` | A stored procedure was invoked as a function, commonly with `SELECT`, or without the correct database/schema context. | Call it as `CALL HOL_DB.HARMONIZED.ORDERS_UPDATE_SP();`. Functions use expressions such as `SELECT ...UDF(...)`; procedures use `CALL`. |
+| Local Streamlit has `No module named tomllib` | The Streamlit process used an older/different interpreter than the updated `pysnowpark` environment. | Stop the old process, activate `pysnowpark`, and start `streamlit run` from `steps`. Select the same interpreter in VS Code. |
+| Snowflake-hosted Streamlit opens separately from the Codespace app | These are two deployments: the local Streamlit server runs in Codespaces; the hosted Streamlit object runs in Snowflake and uses its configured query warehouse. | Use the Snowflake app URL for the hosted version. Stop the Codespace server with Ctrl+C if it is no longer needed. Browser choice does not move execution between environments; corporate URL isolation may require an approved allowlist. |
+| Notebook kernel reports `nbctl vsessions unavailable` on localhost:8888 | The Snowflake VS Code extension's own notebook session service was unavailable. That is distinct from a local Jupyter kernel. | Install Microsoft Jupyter extension, install/register `ipykernel` in `pysnowpark`, and select a Jupyter/Python kernel rather than the Snowflake extension kernel. |
+| Notebook cell stays pending | The Jupyter log showed the kernel started but the cell never completed; the first imports cell also needed `cachetools`, which was absent. A fresh-process import test passed after adding it, but notebook execution still needs confirmation. | Restart the kernel, select the `pysnowpark` Python 3.11 Jupyter kernel, and run a small import cell. If it remains pending, inspect the Jupyter output log and kernel state; do not assume a Snowflake query is the cause when no cell has completed. |
+| `git add .` appears to stage only a few changes | Git adds paths relative to the current directory. Running inside a nested `steps/...` folder does not stage changes above or beside it. | Run `git add -A` from the repository root, then inspect **Staged Changes**. `M `, `A `, and `D ` in `git status --short` indicate staged modification, addition, and deletion. Review unrelated pre-existing edits before committing. |
+
+<!-- ...existing code... -->
+
+## 11. Data Science & Machine Learning with Snowpark
+
+### Objective
+
+The data science notebook builds and deploys a model in Snowflake to predict food-truck shift sales. Its business goal is to help drivers choose locations expected to generate higher sales.
+
+### Notebook workflow
+
+1. **Prepare the data:** Snowpark aggregates order records into shift sales by location and shift, then saves the result to `HOL_DB.ANALYTICS.SHIFT_SALES`.
+2. **Engineer features:** A window function calculates `AVG_LOCATION_SHIFT_SALES`, the historical average for each location and shift. Missing averages are filled with zero, and `SHIFT` is encoded numerically.
+3. **Build training data:** Rows without `SHIFT_SALES` are excluded. Identifier columns (`LOCATION_ID`, `CITY`, and `DATE`) are dropped, and the remaining data is split into training and test sets.
+4. **Train the model:** A Python stored procedure uses Scikit-learn `LinearRegression`. The features are `SHIFT_ID`, `SHIFT`, and `AVG_LOCATION_SHIFT_SALES`; the target is `SHIFT_SALES`.
+5. **Save the artifact:** Joblib serializes the trained model to a file in the Snowflake stage `@MODEL_STAGE`.
+6. **Deploy inference:** A Python UDF loads the staged model and returns predictions. Snowpark calls the UDF to score rows in Snowflake.
+7. **Evaluate and use predictions:** The notebook calculates training and test RMSE, then ranks Vancouver locations by predicted sales for a selected shift.
+
+### Results and interpretation
+
+The supplied run notes report a training RMSE of **7,732** and test RMSE of **7,735**, with `AVG_LOCATION_SHIFT_SALES` reported as the strongest feature. Verify these figures against the notebook output before relying on them. RMSE is in the target's units (sales), and similar train/test scores alone do not establish that a model generalizes well; compare them with a suitable baseline and validate the split for time or location leakage.
+
+The supplied feature-weight notes report `AVG_LOCATION_SHIFT_SALES` at approximately `0.793`, while `SHIFT_ID` and `SHIFT` are near zero. Treat these as run-specific coefficients, not universal feature importance: coefficient magnitudes depend on feature scales and the training data.
+
+### Snowpark concepts demonstrated
+
+- Window functions and feature engineering
+- Training a Scikit-learn model in a Python stored procedure
+- Saving a model artifact to a Snowflake stage
+- Registering a Python UDF for inference
+- Evaluating predictions with RMSE
+- An end-to-end workflow: **prepare → train → save → deploy → predict**
+
+### Operational and cost notes
+
+The notebook scales `HOL_WH` to `MEDIUM` for inference, but its reset cell scales down `TASTY_DS_WH` instead. Verify which warehouse ran the notebook, then resize the correct warehouse back to an appropriate size and suspend it when no longer needed. Dropping tables and stages does not itself stop a running warehouse.
+
+The training procedure collects the training table into Python memory. That is acceptable for a learning example, but may not scale to large datasets; measure memory and runtime before adapting this pattern.
+
+### Possible healthcare applications
+
+The same broad workflow could be explored for structured registry data—for example, estimating length of stay or readmission risk. These are potential analytical use cases, not validated clinical tools. They require appropriate data governance, validation, privacy safeguards, and clinical review. Working with clinical notes for sepsis-onset analysis would additionally require a carefully validated text-processing or NLP workflow.
 ## Purpose Pause Week Review
 
 1. Draw the architecture and identify which committed DML advances each stream.

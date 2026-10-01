@@ -1,0 +1,8 @@
+name: sales_metrics_streamlit
+channels:
+  - snowflake
+dependencies:
+  - streamlit
+  - snowflake-snowpark-python
+  - pandas
+  - altair

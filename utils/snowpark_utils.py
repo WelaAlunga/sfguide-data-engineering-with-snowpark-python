@@ -96,9 +96,15 @@ def get_snowflake_config(
         with open(config_file_path, "rb") as config_file:
             config = tomllib.load(config_file)
         connections = config.get('connections', config)
-        connection = connections[connection_name]
+        if connection_name in connections:
+            connection = connections[connection_name]
+        elif len(connections) == 1:
+            connection = next(iter(connections.values()))
+        else:
+            raise KeyError(
+                f"Connection '{connection_name}' not found. "
+                f"Available profiles: {', '.join(connections)}"
+            )
         return {key: value for key, value in connection.items() if value}
-    except Exception:
-        raise Exception(
-            "Error getting Snowflake connections.toml details"
-        )
+    except (OSError, KeyError, tomllib.TOMLDecodeError) as exc:
+        raise Exception(f"Error reading Snowflake connection profile: {exc}") from exc
